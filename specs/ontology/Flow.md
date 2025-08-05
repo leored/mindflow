@@ -1,0 +1,6 @@
+---
+aliases:
+  - Flows
+tags:
+  - Entity
+---

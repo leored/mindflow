@@ -1,0 +1,2 @@
+A Group of Connections with something in common, so the configuration of the [[Connection]] could depends on the others. 
+For instance, a Connection Group could be used to distribute the value among the Connections, and the total of the distribution has to include the total.

@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Flow Schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique flow identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Flow name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Flow description"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Node"
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Connection"
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Flow metadata"
+    },
+    "version": {
+      "type": "integer",
+      "description": "Flow version"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "is_readonly": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": ["id", "name", "nodes", "connections"],
+  "definitions": {
+    "Node": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "type": {"type": "string"},
+        "title": {"type": "string"},
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": {"type": "number"},
+            "y": {"type": "number"}
+          },
+          "required": ["x", "y"]
+        },
+        "properties": {"type": "object"},
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "type": {"type": "string"},
+              "value": {},
+              "required": {"type": "boolean"}
+            },
+            "required": ["name", "type"]
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "type": {"type": "string"},
+              "value": {}
+            },
+            "required": ["name", "type"]
+          }
+        }
+      },
+      "required": ["id", "type", "title", "position"]
+    },
+    "Connection": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "source_node_id": {"type": "string"},
+        "source_output": {"type": "string"},
+        "target_node_id": {"type": "string"},
+        "target_input": {"type": "string"}
+      },
+      "required": ["id", "source_node_id", "source_output", "target_node_id", "target_input"]
+    }
+  }
+}

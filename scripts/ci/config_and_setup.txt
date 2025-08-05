@@ -1,0 +1,197 @@
+# docsync.yaml - Configuration file for Documentation Sync System
+
+# Git repository settings
+watch_directories:
+  - "docs/"
+  - "documentation/"
+  - "wiki/"
+
+file_extensions:
+  - ".md"
+  - ".markdown"
+  - ".mdx"
+
+exclude_patterns:
+  - "**/node_modules/**"
+  - "**/.git/**"
+  - "**/build/**"
+  - "**/dist/**"
+  - "**/.vscode/**"
+  - "**/temp/**"
+
+# LightRAG API settings
+api_base_url: "http://localhost:8020"
+api_timeout: 30
+
+# Processing settings
+batch_size: 10
+dry_run: false
+
+# Logging configuration
+log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+log_file: null     # Set to a file path to enable file logging
+
+---
+# requirements.txt
+requests>=2.31.0
+PyYAML>=6.0.1
+pathlib2>=2.3.7; python_version < '3.4'
+
+---
+# GitHub Actions workflow example
+# .github/workflows/docsync.yml
+name: Documentation Sync
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'docs/**'
+      - 'documentation/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'documentation/**'
+
+jobs:
+  sync-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for git diff
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Sync documentation changes
+      env:
+        LIGHTRAG_API_URL: ${{ secrets.LIGHTRAG_API_URL }}
+      run: |
+        python docsync.py --since-commit ${{ github.event.before }}
+      # Alternative for PR events:
+      # python docsync.py --between-commits ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+
+---
+# Docker example for running as a service
+# Dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install git
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY docsync.py .
+COPY docsync.yaml .
+
+# Create non-root user
+RUN useradd -m -u 1000 docsync
+USER docsync
+
+ENTRYPOINT ["python", "docsync.py"]
+
+---
+# docker-compose.yml example
+version: '3.8'
+
+services:
+  docsync:
+    build: .
+    volumes:
+      - /path/to/your/repo:/repo:ro
+      - ./docsync.yaml:/app/docsync.yaml:ro
+    working_dir: /repo
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - lightrag
+    command: ["--since-commit", "HEAD~1"]
+  
+  lightrag:
+    image: lightrag/api:latest  # Replace with actual LightRAG image
+    ports:
+      - "8020:8020"
+    environment:
+      - LIGHTRAG_CONFIG=/config/lightrag.yaml
+    volumes:
+      - ./lightrag-config.yaml:/config/lightrag.yaml:ro
+      - lightrag-data:/data
+
+volumes:
+  lightrag-data:
+
+---
+# Pre-commit hook example
+# .git/hooks/pre-commit
+#!/bin/bash
+
+# Documentation Sync Pre-commit Hook
+echo "Checking for documentation changes..."
+
+# Check if there are staged documentation files
+if git diff --cached --name-only | grep -E '\.(md|markdown)$' > /dev/null; then
+    echo "Documentation changes detected. Syncing with Knowledge DB..."
+    
+    # Run the sync for staged changes
+    python docsync.py --staged --dry-run
+    
+    if [ $? -eq 0 ]; then
+        echo "Documentation sync completed successfully."
+    else
+        echo "Documentation sync failed. Please check the logs."
+        exit 1
+    fi
+else
+    echo "No documentation changes detected."
+fi
+
+echo "Pre-commit checks passed."
+
+---
+# systemd service example
+# /etc/systemd/system/docsync.service
+[Unit]
+Description=Documentation Sync Service
+After=network.target
+
+[Service]
+Type=oneshot
+User=docsync
+Group=docsync
+WorkingDirectory=/opt/docsync
+ExecStart=/usr/bin/python3 /opt/docsync/docsync.py --since-commit HEAD~1
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+---
+# systemd timer for periodic execution
+# /etc/systemd/system/docsync.timer
+[Unit]
+Description=Run Documentation Sync every 5 minutes
+Requires=docsync.service
+
+[Timer]
+OnCalendar=*:0/5
+Persistent=true
+
+[Install]
+WantedBy=timers.target
