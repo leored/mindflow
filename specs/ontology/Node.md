@@ -8,7 +8,7 @@ Represents a Concept or Entity and it's connected to other [[Node|Nodes]].
 
 
 # Attributes
-* Name. 
+* Name. Visible title of the Node in the Visual Graph
 * Description. 
 * Type.
 * Value. There is a main attribute represented by a main value
